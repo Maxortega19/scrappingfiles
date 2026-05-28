@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+build/
+dist/
+*.spec
+
+# Downloads
+downloads/
+
+# OS
+Thumbs.db
+.DS_Store
