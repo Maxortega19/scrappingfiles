@@ -240,11 +240,11 @@ def build_parser():
         description="Download files from web pages by file extension."
     )
     p.add_argument(
-        "--url", required=True, nargs="+",
+        "--url", nargs="+", default=None,
         help="One or more page URLs to scrape.",
     )
     p.add_argument(
-        "--exts", required=True, nargs="+",
+        "--exts", nargs="+", default=None,
         help="Extensions to download (ppt doc zip pdf jpg png …).",
     )
     p.add_argument(
@@ -282,38 +282,35 @@ def build_parser():
     return p
 
 
-def main():
-    args = build_parser().parse_args()
+# ---------------------------------------------------------------------------
+# Core logic
+# ---------------------------------------------------------------------------
 
-    # Normalise extensions
-    extensions = [f".{e.lstrip('.')}" for e in args.exts]
 
-    # SSL
-    if args.ignore_ssl:
+def run(urls, extensions, output, crawl, depth, max_pages, skip_blog, delay, crawl_filter, ignore_ssl):
+    """Collect links and download files.  Shared by CLI and interactive modes."""
+
+    if ignore_ssl:
         SESSION.verify = False
 
-    # Crawl filter
-    crawl_filter = re.compile(args.crawl_filter) if args.crawl_filter else None
+    filter_re = re.compile(crawl_filter) if crawl_filter else None
 
-    # -----------------------------------------------------------------------
+    # -------------------------------------------------------------------
     # Phase 1 – collect links
-    # -----------------------------------------------------------------------
-    print(f"Site(s):      {', '.join(args.url)}")
+    # -------------------------------------------------------------------
+    print(f"Site(s):      {', '.join(urls)}")
     print(f"Extensions:   {', '.join(extensions)}")
-    print(f"Output:       {args.output}")
-    if args.crawl:
-        flags = [f"depth={args.depth}", f"max={args.max_pages}p"]
-        if args.skip_blog_posts:
+    print(f"Output:       {output}")
+    if crawl:
+        flags = [f"depth={depth}", f"max={max_pages}p"]
+        if skip_blog:
             flags.append("skip-posts")
-        if args.crawl_filter:
-            flags.append(f"filter={args.crawl_filter}")
+        if crawl_filter:
+            flags.append(f"filter={crawl_filter}")
         print(f"Crawl:        {', '.join(flags)}")
     print()
 
-    all_links = _collect(
-        args.url, extensions, args.crawl, args.depth,
-        args.max_pages, args.skip_blog_posts, crawl_filter,
-    )
+    all_links = _collect(urls, extensions, crawl, depth, max_pages, skip_blog, filter_re)
 
     total = sum(len(v) for v in all_links.values())
     if total == 0:
@@ -322,13 +319,13 @@ def main():
 
     print(f"\nFound {total} file(s) in {len(all_links)} section(s).\n")
 
-    # -----------------------------------------------------------------------
+    # -------------------------------------------------------------------
     # Phase 2 – download
-    # -----------------------------------------------------------------------
-    domain = urlparse(args.url[0]).netloc
-    base_dir = Path(args.output) / domain
+    # -------------------------------------------------------------------
+    domain = urlparse(urls[0]).netloc
+    base_dir = Path(output) / domain
 
-    ok = fail = skip = 0
+    ok = fail = 0
 
     for section, links in all_links.items():
         safe_dir = re.sub(r'[<>:"/\\|?*]', "_", section) if section else "root"
@@ -345,16 +342,78 @@ def main():
             else:
                 fail += 1
 
-            if args.delay:
-                time.sleep(args.delay)
+            if delay:
+                time.sleep(delay)
 
-    # -----------------------------------------------------------------------
+    # -------------------------------------------------------------------
     # Summary
-    # -----------------------------------------------------------------------
+    # -------------------------------------------------------------------
     print(f"\n--- Done ---")
     print(f"  Downloaded: {ok}")
     print(f"  Failed:     {fail}")
-    print(f"  Skipped:    {skip}")
+
+
+# ---------------------------------------------------------------------------
+# Interactive mode – prompt user when no CLI args are given
+# ---------------------------------------------------------------------------
+
+
+def interactive_mode():
+    """Gather parameters via interactive prompts and run the scraper."""
+    print("=== Web File Scraper ===\n")
+
+    urls_raw = input("Page URL(s) to scrape (comma-separated): ").strip()
+    urls = [u.strip() for u in urls_raw.replace(",", " ").split() if u.strip()]
+    if not urls:
+        print("No URL provided. Exiting.")
+        return
+
+    exts_raw = input("Extensions to download (e.g. ppt doc jpg): ").strip()
+    exts = [f".{e.strip().lstrip('.')}" for e in exts_raw.replace(",", " ").split() if e.strip()]
+    if not exts:
+        print("No extensions provided. Exiting.")
+        return
+
+    output = input("Output folder [downloads]: ").strip() or "downloads"
+
+    crawl = input("Crawl internal links? (y/N): ").strip().lower() == "y"
+    depth = 1
+    max_pages = 100
+    skip_blog = False
+    if crawl:
+        depth_in = input("  Crawl depth [1]: ").strip()
+        depth = int(depth_in) if depth_in.isdigit() else 1
+        max_in = input("  Max pages to visit [100]: ").strip()
+        max_pages = int(max_in) if max_in.isdigit() else 100
+        skip_blog = input("  Skip WordPress blog posts? (y/N): ").strip().lower() == "y"
+
+    delay_raw = input("Seconds between downloads [1]: ").strip()
+    delay = float(delay_raw) if delay_raw else 1.0
+
+    print()
+    run(urls, exts, output, crawl, depth, max_pages, skip_blog, delay, None, False)
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
+
+def main():
+    args = build_parser().parse_args()
+
+    if not args.url:
+        # No CLI arguments → interactive mode
+        interactive_mode()
+        return
+
+    # CLI mode
+    extensions = [f".{e.lstrip('.')}" for e in args.exts]
+    run(
+        args.url, extensions, args.output, args.crawl, args.depth,
+        args.max_pages, args.skip_blog_posts, args.delay,
+        args.crawl_filter, args.ignore_ssl,
+    )
 
 
 if __name__ == "__main__":

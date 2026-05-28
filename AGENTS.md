@@ -3,19 +3,18 @@
 Python CLI tool to download files by file extension from one or more web pages.  
 Supports crawling internal links for sites that spread files across sub-pages.
 
-## Quick commands
+## Usage
 
 ```bash
 # Install deps
 pip install -r requirements.txt
 
-# Single page
+# Interactive mode (prompts for all inputs)
+python scraper.py
+
+# OR via CLI arguments:
 python scraper.py --url "https://example.com/files/" --exts ppt doc
-
-# Multiple pages
 python scraper.py --url "https://site.com/a/" --url "https://site.com/b/" --exts ppt
-
-# Crawl internal pages (depth 1, max 100 pages, skip blog-style posts)
 python scraper.py --url "https://9letras.wordpress.com/" --exts ppt --crawl --skip-blog-posts
 ```
 
