@@ -358,36 +358,153 @@ def run(urls, extensions, output, crawl, depth, max_pages, skip_blog, delay, cra
 # ---------------------------------------------------------------------------
 
 
+def show_help():
+    """Display help screen."""
+    print()
+    print("=" * 54)
+    print("                      HELP")
+    print("=" * 54)
+    print()
+    print("What does this tool do?")
+    print("  Scans a web page for links to files (PPT, DOC, images, PDF, etc.)")
+    print("  and downloads them automatically.")
+    print()
+    print("What is crawling?")
+    print("  When enabled, the tool follows internal links on the site")
+    print("  (like a navigation menu) to find more pages with files.")
+    print("  Useful for sites organized into sections or categories.")
+    print()
+    print("Can I use it without the menu?")
+    print("  Yes. Pass arguments directly:")
+    print("  python scraper.py --url https://... --exts ppt doc")
+    print()
+    print("Press Enter to return to the menu.", end="")
+    input()
+
+
 def interactive_mode():
     """Gather parameters via interactive prompts and run the scraper."""
-    print("=== Web File Scraper ===\n")
+    # ── menu ──────────────────────────────────────────────────────────
+    while True:
+        print()
+        print("=" * 54)
+        print("               WEB FILE SCRAPER")
+        print("=" * 54)
+        print()
+        print("  1.  Start scraping")
+        print("  2.  Help")
+        print("  3.  Exit")
+        print()
+        choice = input("Choose an option [1]: ").strip()
 
-    urls_raw = input("Page URL(s) to scrape (comma-separated): ").strip()
+        if not choice or choice == "1":
+            break
+        elif choice == "2":
+            show_help()
+        elif choice == "3":
+            print("Goodbye.")
+            return
+        else:
+            print(f"  Invalid option: {choice}")
+
+    # ── URL ───────────────────────────────────────────────────────────
+    print()
+    print("─" * 54)
+    print("  STEP 1: Page URL(s)")
+    print("─" * 54)
+    print()
+    print("  Enter the web address of the page that contains the download links.")
+    print("  If the files are spread across multiple pages, separate them with")
+    print("  commas.  Example:")
+    print()
+    print("    https://site.com/page1/, https://site.com/page2/")
+    print()
+    urls_raw = input("  URL(s): ").strip()
     urls = [u.strip() for u in urls_raw.replace(",", " ").split() if u.strip()]
     if not urls:
-        print("No URL provided. Exiting.")
+        print("  No URL provided. Exiting.")
         return
 
-    exts_raw = input("Extensions to download (e.g. ppt doc jpg): ").strip()
+    # ── extensions ────────────────────────────────────────────────────
+    print()
+    print("─" * 54)
+    print("  STEP 2: File extensions")
+    print("─" * 54)
+    print()
+    print("  Which file types do you want to download?")
+    print("  Common examples:  ppt   doc   jpg   png   pdf   zip")
+    print("  You can specify multiple extensions separated by spaces or commas.")
+    print()
+    exts_raw = input("  Extensions: ").strip()
     exts = [f".{e.strip().lstrip('.')}" for e in exts_raw.replace(",", " ").split() if e.strip()]
     if not exts:
-        print("No extensions provided. Exiting.")
+        print("  No extensions provided. Exiting.")
         return
 
-    output = input("Output folder [downloads]: ").strip() or "downloads"
+    # ── output folder ─────────────────────────────────────────────────
+    print()
+    print("─" * 54)
+    print("  STEP 3: Output folder")
+    print("─" * 54)
+    print()
+    print("  Where to save the files.  A sub-folder named after the domain")
+    print("  (e.g. 9letras.wordpress.com) will be created automatically.")
+    print()
+    output = input("  Output folder [downloads]: ").strip() or "downloads"
 
-    crawl = input("Crawl internal links? (y/N): ").strip().lower() == "y"
+    # ── crawl ─────────────────────────────────────────────────────────
+    print()
+    print("─" * 54)
+    print("  STEP 4: Crawl settings")
+    print("─" * 54)
+    print()
+    print("  Crawling = follow links on the page to visit other pages of the")
+    print("  same site automatically.  Useful when the site has a menu that")
+    print("  links to category pages, each containing its own set of files.")
+    print()
+    print("  Answer N if you only want to scan the URL(s) you entered above")
+    print("  without following any links.")
+    print()
+    crawl = input("  Crawl internal links? (y/N): ").strip().lower() == "y"
     depth = 1
     max_pages = 100
     skip_blog = False
-    if crawl:
-        depth_in = input("  Crawl depth [1]: ").strip()
-        depth = int(depth_in) if depth_in.isdigit() else 1
-        max_in = input("  Max pages to visit [100]: ").strip()
-        max_pages = int(max_in) if max_in.isdigit() else 100
-        skip_blog = input("  Skip WordPress blog posts? (y/N): ").strip().lower() == "y"
 
-    delay_raw = input("Seconds between downloads [1]: ").strip()
+    if crawl:
+        print()
+        print("  ── Crawl depth ─────────────────────────────────────")
+        print("    How many levels of links to follow.")
+        print("    1 = only pages linked directly from your URL(s).")
+        print("    2 = also pages linked from those pages, etc.")
+        print()
+        depth_in = input("    Depth [1]: ").strip()
+        depth = int(depth_in) if depth_in.isdigit() else 1
+
+        print()
+        print("  ── Max pages ───────────────────────────────────────")
+        print("    Safety limit to avoid visiting too many pages.")
+        print()
+        max_in = input("    Max pages to visit [100]: ").strip()
+        max_pages = int(max_in) if max_in.isdigit() else 100
+
+        print()
+        print("  ── Skip blog posts ─────────────────────────────────")
+        print("    WordPress blog posts have URLs like /2023/05/title/.")
+        print("    They rarely contain download links, so skipping them")
+        print("    makes crawling faster and more focused.")
+        print()
+        skip_blog = input("    Skip WordPress blog posts? (y/N): ").strip().lower() == "y"
+
+    # ── delay ─────────────────────────────────────────────────────────
+    print()
+    print("─" * 54)
+    print("  STEP 5: Download settings")
+    print("─" * 54)
+    print()
+    print("  Pause between downloads so the server is not overloaded.")
+    print("  1 second is a safe default.  0 = fastest possible.")
+    print()
+    delay_raw = input("  Seconds between downloads [1]: ").strip()
     delay = float(delay_raw) if delay_raw else 1.0
 
     print()
